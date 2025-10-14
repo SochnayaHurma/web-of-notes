@@ -1,0 +1,11 @@
+#python
+venv
+*.db
+*.sqlite3
+
+*.pyc
+__pycache__
+.idea
+.vs/~
+*.sln.ide/
+*.sln.apps/
