@@ -16,9 +16,9 @@ import {
 } from '@elastic/eui';
 import { useNavigate } from 'react-router-dom';
 
-import TextAreaEditor from '../Components/Form/TextAreaEditor.jsx';
+import TextAreaEditor from '../Components/Form/TextAreaEditor.tsx';
 import BadgetCombobox from '../Components/Form/BadgetCombobox.jsx';
-import Combobox, {Option as SubjectOption} from '../Components/Form/Combobox.tsx';
+import Combobox, { Option as SubjectOption } from '../Components/Form/Combobox.tsx';
 import { addToast } from '../Components/Toast.tsx';
 
 interface NoteBodyForPost {
@@ -29,15 +29,15 @@ interface NoteBodyForPost {
 }
 
 interface FormState {
-    subject: string;
-    title: string;
-    tags: string[];
-    content: string;
+  subject: string;
+  title: string;
+  tags: string[];
+  content: string;
 }
 
 interface TagState {
   label: string;
-  value: {size: number};
+  value: { size: number };
   id: string;
   color: string;
 }
@@ -47,7 +47,7 @@ interface SubjectResponse {
   title: string;
 }
 
-interface TagResponse{
+interface TagResponse {
   id: number;
   name: string;
 }
@@ -57,13 +57,13 @@ interface CreateNoteResponse {
   data: any;
 }
 
-async function getAllTags(): Promise<TagResponse[]>{
+async function getAllTags(): Promise<TagResponse[]> {
   const response = await fetch('http://localhost:8000/api/v1/tags/')
   return await response.json()
 }
 
 
-async function getAllSubjects(): Promise<SubjectResponse[]>{
+async function getAllSubjects(): Promise<SubjectResponse[]> {
   const response = await fetch('http://localhost:8000/api/v1/subjects/');
   return await response.json();
 }
@@ -72,7 +72,7 @@ async function fetchPostNote(form: NoteBodyForPost): Promise<CreateNoteResponse>
   const response = await fetch('http://localhost:8000/api/v1/notes/', {
     method: 'POST',
     headers: {
-        'Content-Type': 'application/json',
+      'Content-Type': 'application/json',
     },
     body: JSON.stringify(form)
   })
@@ -80,9 +80,9 @@ async function fetchPostNote(form: NoteBodyForPost): Promise<CreateNoteResponse>
   const data = await response.json();
   console.log(data);
   if (response.status == 201) {
-    return {data, errors: []};
-  } 
-  return {data: null, errors: data.errors}
+    return { data, errors: [] };
+  }
+  return { data: null, errors: data.errors }
 }
 
 
@@ -106,26 +106,21 @@ export default () => {
   const [subjects, setSubjects] = useState<SubjectOption[]>([]);
 
   function onChangeSingleField(e: React.ChangeEvent<HTMLInputElement>) {
-    setForm({...form, [e.target.name]: e.target.value})
+    setForm({ ...form, [e.target.name]: e.target.value })
   }
-  function onChangeMultipleValuesField(newState: TagState[])
-  {
-    setForm({...form, tags: newState.map(el => el.id)})
-  }
-
-  function onChangeContentValue(newValue: string)
-  {
-    setForm({...form, 'content': newValue})
+  function onChangeMultipleValuesField(newState: TagState[]) {
+    setForm({ ...form, tags: newState.map(el => el.id) })
   }
 
-  async function onSubmit(e: FormEvent<HTMLElement>)
-  {
+  function onChangeContentValue(newValue: string) {
+    setForm({ ...form, 'content': newValue })
+  }
+
+  async function onSubmit(e: FormEvent<HTMLElement>) {
     setLoadingForm(true);
     e.preventDefault();
-    addToast({title: 'Успешно', color: 'success', text: 'Запись успешно создана'});
-    setLoadingForm(false);
-    navigate("/lessons");
-    return
+    addToast({ title: 'Успешно', color: 'success', text: 'Запись успешно создана' });
+
     const srvData = await fetchPostNote({
       content: form.content,
       title: form.title,
@@ -134,10 +129,14 @@ export default () => {
     });
     if (srvData.errors.length) {
       setShowErrors(true);
+      setLoadingForm(false);
       setFormErrors(srvData.errors);
     } else {
       setShowErrors(false);
       setFormErrors([]);
+      setLoadingForm(false);
+      navigate("/lessons");
+      return
     }
 
   }
@@ -148,7 +147,7 @@ export default () => {
         setTags(srvTags);
       }
 
-      
+
       const srvSubjects = await getAllSubjects();
       if (srvSubjects) {
         const preparedSubjects = srvSubjects.map(el => ({
@@ -211,19 +210,19 @@ export default () => {
   return (
     <EuiForm fullWidth={true} component="form" onSubmit={onSubmit} error={formErrors} isInvalid={showErrors}>
       <EuiFormRow label="Занятие" helpText="Как бы ты хотел(а) назвать направление в котором хочешь двигатья?">
-        <Combobox options={subjects} onChange={onChangeSingleField} name="subject" defaultValue={form.subject}/>
+        <Combobox options={subjects} onChange={onChangeSingleField} name="subject" defaultValue={form.subject} />
       </EuiFormRow>
-      <EuiSpacer/>
+      <EuiSpacer />
       <EuiFormRow label="Тема" helpText="Чем займемся сегодня?">
         <EuiFieldText name="title" onChange={onChangeSingleField} />
       </EuiFormRow>
-      <EuiSpacer/>
+      <EuiSpacer />
       <EuiFormRow label="Тэги">
-        <BadgetCombobox initialOptions={tags} onChangeFn={onChangeMultipleValuesField}/>
+        <BadgetCombobox initialOptions={tags} onChangeFn={onChangeMultipleValuesField} />
       </EuiFormRow>
-      <EuiSpacer/>
+      <EuiSpacer />
       <EuiFormRow>
-        <TextAreaEditor stateSaver={onChangeContentValue}/>
+        <TextAreaEditor stateSaver={onChangeContentValue} />
       </EuiFormRow>
       <EuiButton type="submit" isLoading={loadingForm} fill >
         Создать

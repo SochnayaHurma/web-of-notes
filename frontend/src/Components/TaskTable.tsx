@@ -1,5 +1,5 @@
 import React, { Component, ReactNode, JSX } from 'react';
-import {NavLink} from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 import {
   EuiBadge,
   EuiHealth,
@@ -57,7 +57,7 @@ type Lessons = Lesson[];
 
 
 
-function calcLessonStatus <JSX>(statusText: string) {
+function calcLessonStatus<JSX>(statusText: string) {
   const classes = {
     Пройден: 'success',
     Отложен: 'warning',
@@ -79,21 +79,21 @@ async function prepareLessons() {
       status: calcLessonStatus(el.status.name),
       countRepeat: el.count_used,
       lessonTags: el.lessonTags
-    }     
+    }
   })
 }
 
 interface TaskTableProps {
   status: string,
 }
-async function getAllLessons(){
+async function getAllLessons() {
   const response = await fetch('http://localhost:8000/api/v1/notes/')
   return await response.json()
 }
 
-class TaskTable extends Component<TaskTableProps>{
+class TaskTable extends Component<TaskTableProps> {
   testItems = [
-        {
+    {
       id: 3,
       subject: 'Корейский ',
       title: {
@@ -114,10 +114,10 @@ class TaskTable extends Component<TaskTableProps>{
   async componentDidMount(): void {
     try {
       const dataForTable = await prepareLessons();
-            console.log('stop')
+      console.log('stop')
       const defaultItemsPerPage = 20;
       this.pager = new Pager(dataForTable.length, defaultItemsPerPage);
-      this.setState( (prevState) => ({
+      this.setState((prevState) => ({
         ...prevState,
         items: dataForTable,
         firstItemIndex: this.pager.getFirstItemIndex(),
@@ -163,6 +163,7 @@ class TaskTable extends Component<TaskTableProps>{
       // footer: <em>Title</em>,
       alignment: LEFT_ALIGNMENT,
       isSortable: false,
+
       mobileOptions: {
         show: false,
       },
@@ -455,7 +456,7 @@ class TaskTable extends Component<TaskTableProps>{
         return <></>;
       }
       const cells = this.columns.map((column) => {
-        const cell = item[column.id ];
+        const cell = item[column.id];
 
         let child;
 
@@ -672,20 +673,20 @@ class TaskTable extends Component<TaskTableProps>{
         </EuiFlexItem>
       );
     }
-  const tabs = [
-    {
-      id: 1,
-      name: 'Все',
-    },
-    {
-      id: 2,
-      name: 'Назначенные',
-    },
-    {
-      id: 3,
-      name: 'Завершенные',
-    },
-  ];
+    const tabs = [
+      {
+        id: 1,
+        name: 'Все',
+      },
+      {
+        id: 2,
+        name: 'Назначенные',
+      },
+      {
+        id: 3,
+        name: 'Завершенные',
+      },
+    ];
 
     return (
       <>

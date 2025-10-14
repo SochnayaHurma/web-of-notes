@@ -20,10 +20,9 @@ import {
   getDefaultEuiMarkdownProcessingPlugins,
   getDefaultEuiMarkdownUiPlugins,
   EuiMarkdownEditorUiPlugin,
-  EuiI18n,
-  useEuiI18n
 } from '@elastic/eui';
-import {EuiMarkdownEditorToolbarProps} from '@elastic/eui'
+import { EuiMarkdownDropHandler } from '@elastic/eui/src/components/markdown_editor/markdown_types';
+
 import AudioRecorderButton from './AudioRecorder.tsx';
 
 
@@ -32,12 +31,14 @@ const AVALABLE_MIME = [
   'image/png'
 ]
 
-const dropHandlers = [
+
+
+
+const dropHandlers: EuiMarkdownDropHandler[] = [
   {
     supportedFiles: ['.jpg', '.jpeg', '.png', '.mp3'],
-    accepts: (itemType) => true,
-    getFormattingForItem: (item) => {
-      // fake an upload
+    accepts: (itemType: string) => true,
+    getFormattingForItem: (item: File) => {
       return new Promise((resolve) => {
         setTimeout(() => {
           const url = URL.createObjectURL(item);
@@ -52,16 +53,20 @@ const dropHandlers = [
 ];
 
 
-const AudioRecordInjector = (setRecord) => {
-  const handleRecordingComplete = (audioBlob) => {
+type TFileParam = { url: string, alt: string };
+type TSetFileRecord<T = any> = (params: TFileParam) => undefined;
+
+
+const AudioRecordInjector = (setRecord: TSetFileRecord) => {
+  const handleRecordingComplete = (audioBlob: Blob) => {
     const url = URL.createObjectURL(audioBlob);
     const title = `Запись_${new Date().toLocaleTimeString()}.webm`;
-    
+
     // Генерируем Markdown, используя Blob URL
     const markdownSnippet = `\n\n\`\`\`audio\n{\n  "src": "${url}",\n  "title": "${title}"\n}\n\`\`\`\n`;
-    
+
     // Вставляем сгенерированный Markdown обратно в редактор
-    setRecord({url, alt: title});
+    setRecord({ url, alt: title });
   };
 
   // 💡 Здесь используем компонент записи
@@ -70,11 +75,11 @@ const AudioRecordInjector = (setRecord) => {
   );
 };
 
-const AudioRecordEditor = ({node, onSave, onCancel}) => {
+const AudioRecordEditor = ({ node, onSave, onCancel }) => {
   {
-    const [record, setRecord] = useState({alt: "", url: ""});
+    const [record, setRecord] = useState({ alt: "", url: "" });
 
-    const onEndRecord = ({url, alt}) => {
+    const onEndRecord = ({ url, alt }: TFileParam) => {
       setRecord({
         url,
         alt: record.alt ? record.alt : alt
@@ -88,20 +93,20 @@ const AudioRecordEditor = ({node, onSave, onCancel}) => {
               <EuiText size="s" style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>Создать запись с микрофона</EuiText>
             </EuiFlexItem>
             <EuiFieldText type="text" controlOnly value={record.alt}
-              placeholder='Наименование записи' 
-              onChange={(e) => setRecord({...record, alt: e.target.value})}/>
+              placeholder='Наименование записи'
+              onChange={(e) => setRecord({ ...record, alt: e.target.value })} />
             <EuiFlexItem>
-              <audio  controls style={{ width: '100%', outline: 'none' }} src={record.url}></audio>
+              <audio controls style={{ width: '100%', outline: 'none' }} src={record.url}></audio>
             </EuiFlexItem>
             <EuiFlexItem direction='column'>
               <EuiFlexGroup justifyContent='start'>
                 {AudioRecordInjector(onEndRecord)}
                 <EuiButton
                   isDisabled={!Boolean(record.url)}
-                  color='success' 
+                  color='success'
                   iconType={'plus'}
-                  onClick={() => onSave(`![${record.alt}.mp3](${record.url})`, {block: true})}>
-                    Вставить в текст
+                  onClick={() => onSave(`![${record.alt}.mp3](${record.url})`, { block: true })}>
+                  Вставить в текст
                 </EuiButton>
               </EuiFlexGroup>
             </EuiFlexItem>
@@ -109,15 +114,15 @@ const AudioRecordEditor = ({node, onSave, onCancel}) => {
         </EuiPanel>
       </>
 
-  )}
+    )
+  }
 }
-// "euiMarkdownEditorToolbar.editor": any;
-// "euiMarkdownEditorToolbar.previewMarkdown": any;
-export default ({stateSaver}) => {
-  useEuiI18n('euiMarkdownEditorToolbar.editor', 'Editorqw', 'qweqwe')
-
+export default ({ stateSaver }) => {
   const [value, setValue] = useState("");
   const [messages, setMessages] = useState([]);
+
+  const [attachedLinks, setAttchedLinks] = useState<Set<string>>(new Set());
+
   const [ast, setAst] = useState(null);
   const [isAstShowing, setIsAstShowing] = useState(true);
   const onParse = useCallback((err, { messages, ast }) => {
@@ -137,37 +142,39 @@ export default ({stateSaver}) => {
       label: 'Добавить запись с микрофона',
       iconType: 'dot',
     },
-    helpText: 'Запись аудио(микрофон)',
-    editor: ({node, onSave, onCancel}) => <AudioRecordEditor node={node} onCancel={onCancel} onSave={onSave} />
+    helpText: <span>Запись аудио(микрофон)</span>,
+    editor: ({ node, onSave, onCancel }) => <AudioRecordEditor node={node} onCancel={onCancel} onSave={onSave} />
   }
 
 
-  function AudioMarkdownParser() { 
+  function AudioMarkdownParser() {
     const Parser = this.Parser;
     const tokenizers = Parser.prototype.inlineTokenizers;
     const methods = Parser.prototype.inlineMethods;
     function tokenizeAudio(eat, value, silent) {
       const match = value.match(/!\[([^\]]+)\.mp3]\(([^)]+)\)/);
+      setAttchedLinks(prevState => prevState.add(value));
+      console.log({ attachedLinks })
       if (!match) return false;
       if (silent) return true;
       const [fullMatch, alt, url] = match;
-      
+
       return eat(fullMatch)({
         type: 'audioPlugin',
-        audio: {alt, url}, 
+        audio: { alt, url },
       });
     }
-      tokenizeAudio.locator = (value, fromIndex) => {
-    return value.indexOf(':', fromIndex);
-  };
+    tokenizeAudio.locator = (value, fromIndex) => {
+      return value.indexOf(':', fromIndex);
+    };
     tokenizers.audio = tokenizeAudio;
     methods.splice(methods.indexOf('link'), 0, 'audio')
   }
 
 
-  const AudioRender  = React.memo(({ audio }) => {
-      if (!audio || !audio.url) return null;
-  return (
+  const AudioRender = React.memo(({ audio }) => {
+    if (!audio || !audio.url) return null;
+    return (
       <EuiPanel paddingSize="s" grow={false} style={{ maxWidth: 400 }}>
         <EuiText size="s" style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
           <EuiIcon type="musicalNote" size="m" style={{ marginRight: 8 }} />
@@ -186,19 +193,19 @@ export default ({stateSaver}) => {
     return parsingList
   }, [])
 
- const finalProcessingList = useMemo(() => {
+  const finalProcessingList = useMemo(() => {
     const processingList = getDefaultEuiMarkdownProcessingPlugins();
-    processingList[1][1].components.audioPlugin  = AudioRender ;
+    processingList[1][1].components.audioPlugin = AudioRender;
     return processingList;
-  }, []); 
+  }, []);
 
   const finalUiPlugins = useMemo(() => {
     const uiPlugins = getDefaultEuiMarkdownUiPlugins();
-    console.log({uiPlugins})
+    console.log({ uiPlugins })
     uiPlugins.push(chartDemoPlugin);
     return uiPlugins;
   }, [])
-  return ( 
+  return (
     <>
       <EuiMarkdownEditor
         aria-label="Редактор контента"
@@ -214,12 +221,10 @@ export default ({stateSaver}) => {
         dropHandlers={dropHandlers}
         readOnly={isReadOnly}
         initialViewMode={'viewing'}
-        // toolbarProps={{onClickPreview: (e) => console.log(e)}}
-        // toolbarProps={{right: <EuiButton onClick={() => se('`editing')}></EuiButton>}}
       />
       <EuiSpacer size="s" />
 
-      {isAstShowing && <EuiCodeBlock language="json">{ast}</EuiCodeBlock>}
+      {/* {isAstShowing && <EuiCodeBlock language="json">{ast}</EuiCodeBlock>} */}
     </>
   );
 };
