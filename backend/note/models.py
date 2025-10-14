@@ -1,6 +1,7 @@
 from django.db import models
 from django.utils import timezone
 from django.core.exceptions import ValidationError
+from django.urls import reverse
 
 class DisciplineModel(models.Model):
     name = models.CharField(max_length=40)
@@ -48,6 +49,26 @@ class StatusModel(models.Model):
     class Meta:
         verbose_name = 'Статус'
         verbose_name_plural = 'Статусы'
+
+
+class AttachContent(models.Model):
+    name = models.CharField(max_length=60)
+    file = models.FileField('Местонахождения файла', blank=False, null=False)
+    created_at = models.DateTimeField('Дата добавления', default=timezone.now)
+    user_session = models.CharField(max_length=40)
+    is_tmp = models.BooleanField(default=True)
+    note = models.ForeignKey("NoteModel", on_delete=models.SET_NULL, null=True)
+
+    def save(self, *args, **kwargs):
+        self.file.name = self.get_upload_path()
+        super().save(*args, **kwargs)
+
+    def get_upload_path(self):
+        model_name = self.__class__.__name__.lower() 
+        return f'files_from_model/{model_name}/pk_{self.id}/{self.file.name}'
+    
+    def get_absolute_url(self):
+        return reverse('note:download_md_content', kwargs={'file_id': self.id})  
 
 class NoteModel(models.Model):
     subject = models.ForeignKey(SubjectModel, on_delete=models.CASCADE)
