@@ -1,13 +1,13 @@
 from django.core.exceptions import ValidationError
 from django.shortcuts import render
-from django.http import HttpRequest
+from django.http import HttpRequest, FileResponse
 
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.request import Request
 from rest_framework.decorators import api_view
 
-from .models import NoteModel, SubjectModel, TagModel, StatusModel
+from .models import NoteModel, SubjectModel, TagModel, StatusModel, AttachContent
 from .serializers import NoteSerializer, SubjectSerializer, TagSerializer, StatusSerializer
 
 @api_view(['GET', 'POST'])
@@ -49,4 +49,24 @@ def get_statuses(request: HttpRequest):
     
     
     
+@api_view(['POST'])
+def upload_md_content(request: HttpRequest):
+    if request.method == 'POST':
+        uploaded_file = request.FILES.get('file')
+        if not uploaded_file:
+            return
+        file = AttachContent(
+            user_session=request.session.session_key,
+            file=uploaded_file
+        )
+        file.save()
+        return Response({'message': 'Файл успешно сохранен', 'url': file.get_absolute_url()}, status=status.HTTP_201_CREATED)
     
+import os
+@api_view(['GET'])
+def download_md_content(request: HttpRequest, file_id: int):
+    file_model = AttachContent.objects.get(id=file_id)
+    file = file_model.file.open('rb')
+    name, ext = os.path.splitext(file_model.file.name)
+    filename = f"{file_model.name}.{ext}"
+    return FileResponse(file, as_attachment=True, filename=filename)

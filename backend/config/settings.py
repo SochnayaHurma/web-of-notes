@@ -1,4 +1,6 @@
 from pathlib import Path
+import environ
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -121,3 +123,11 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
 ]
 
+ENV_DIR = ".env"
+env = environ.Env()
+environ.Env.read_env(ENV_DIR)
+
+if not DEBUG:
+    MEDIA_ROOT = env('MEDIA_ROOT', default=None)
+else:
+    MEDIA_ROOT = os.path.join(BASE_DIR, "media")

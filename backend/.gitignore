@@ -2,6 +2,7 @@
 venv
 *.db
 *.sqlite3
+media
 
 *.pyc
 __pycache__
