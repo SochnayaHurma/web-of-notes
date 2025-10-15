@@ -1,3 +1,5 @@
+import uuid
+
 from django.db import models
 from django.utils import timezone
 from django.core.exceptions import ValidationError
@@ -52,6 +54,7 @@ class StatusModel(models.Model):
 
 
 class AttachContent(models.Model):
+    uuid = models.UUIDField(default=uuid.uuid4)
     name = models.CharField(max_length=60)
     file = models.FileField('Местонахождения файла', blank=False, null=False)
     created_at = models.DateTimeField('Дата добавления', default=timezone.now)
@@ -60,12 +63,13 @@ class AttachContent(models.Model):
     note = models.ForeignKey("NoteModel", on_delete=models.SET_NULL, null=True)
 
     def save(self, *args, **kwargs):
-        self.file.name = self.get_upload_path()
+        if not self.id:
+            self.file.name = self.get_upload_path()
         super().save(*args, **kwargs)
 
     def get_upload_path(self):
         model_name = self.__class__.__name__.lower() 
-        return f'files_from_model/{model_name}/pk_{self.id}/{self.file.name}'
+        return f'files_from_model/{model_name}/{self.uuid}/{self.file.name}'
     
     def get_absolute_url(self):
         return reverse('note:download_md_content', kwargs={'file_id': self.id})  

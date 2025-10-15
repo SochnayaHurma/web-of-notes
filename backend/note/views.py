@@ -1,3 +1,6 @@
+import os
+import uuid
+
 from django.core.exceptions import ValidationError
 from django.shortcuts import render
 from django.http import HttpRequest, FileResponse
@@ -53,20 +56,28 @@ def get_statuses(request: HttpRequest):
 def upload_md_content(request: HttpRequest):
     if request.method == 'POST':
         uploaded_file = request.FILES.get('file')
+        filename = request.data.get('filename')
+        if not filename:
+            filename = uuid.uuid4().hex
         if not uploaded_file:
             return
         file = AttachContent(
-            user_session=request.session.session_key,
+            name=filename,
+            # user_session=request.session.session_key,
             file=uploaded_file
         )
         file.save()
-        return Response({'message': 'Файл успешно сохранен', 'url': file.get_absolute_url()}, status=status.HTTP_201_CREATED)
+        return Response({
+            'message': 'Файл успешно сохранен', 
+            'url': file.get_absolute_url(),
+            'file_id': file.id,
+            }, status=status.HTTP_201_CREATED)
     
-import os
 @api_view(['GET'])
 def download_md_content(request: HttpRequest, file_id: int):
     file_model = AttachContent.objects.get(id=file_id)
     file = file_model.file.open('rb')
     name, ext = os.path.splitext(file_model.file.name)
+    print('EAXT', ext, name)
     filename = f"{file_model.name}.{ext}"
     return FileResponse(file, as_attachment=True, filename=filename)
