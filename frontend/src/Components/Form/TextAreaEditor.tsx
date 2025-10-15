@@ -32,21 +32,38 @@ const AVALABLE_MIME = [
 ]
 
 
-
-
 const dropHandlers: EuiMarkdownDropHandler[] = [
   {
     supportedFiles: ['.jpg', '.jpeg', '.png', '.mp3'],
     accepts: (itemType: string) => true,
     getFormattingForItem: (item: File) => {
-      return new Promise((resolve) => {
-        setTimeout(() => {
-          const url = URL.createObjectURL(item);
+      return new Promise(async (resolve) => {
+        const formData = new FormData();
+        formData.append('file', item);
+        const response = await fetch(
+          'http://localhost:8000/api/v1/notes/attach/',
+          {
+            'method': 'POST',
+            'body': formData,
+          }
+        )
+        const data = await response.json()
+        if (response.status == 201) {
+          const url = data['url']
+          const file_id = data['file_id']
+          console.log({ file_id })
           resolve({
-            text: `![${item.name}](${url})`,
+            text: `![${item.name}](http://localhost:8000${url})`,
             config: { block: true },
-          });
-        }, 1000);
+          })
+        }
+        // setTimeout(() => {
+        //   const url = URL.createObjectURL(item);
+        //   resolve({
+        //     text: `![${item.name}](${url})`,
+        //     config: { block: true },
+        //   });
+        // }, 1000);
       });
     },
   },
@@ -59,14 +76,32 @@ type TSetFileRecord<T = any> = (params: TFileParam) => undefined;
 
 const AudioRecordInjector = (setRecord: TSetFileRecord) => {
   const handleRecordingComplete = (audioBlob: Blob) => {
-    const url = URL.createObjectURL(audioBlob);
+    const formData = new FormData();
     const title = `Запись_${new Date().toLocaleTimeString()}.webm`;
 
-    // Генерируем Markdown, используя Blob URL
-    const markdownSnippet = `\n\n\`\`\`audio\n{\n  "src": "${url}",\n  "title": "${title}"\n}\n\`\`\`\n`;
+    formData.append('file', audioBlob, title);
+    formData.append('filename', title);
+    const response = fetch(
+      'http://localhost:8000/api/v1/notes/attach/',
+      {
+        'method': 'POST',
+        'body': formData,
+      }
+    ).then(resp => resp.json())
+      .then(json => {
+        const url = json['url']
+        const file_id = json['file_id']
+        setRecord({ url: `http://localhost:8000${url}`, alt: title });
+      })
 
-    // Вставляем сгенерированный Markdown обратно в редактор
-    setRecord({ url, alt: title });
+    // const url = URL.createObjectURL(audioBlob);
+    // const title = `Запись_${new Date().toLocaleTimeString()}.webm`;
+
+    // // Генерируем Markdown, используя Blob URL
+    // const markdownSnippet = `\n\n\`\`\`audio\n{\n  "src": "${url}",\n  "title": "${title}"\n}\n\`\`\`\n`;
+
+    // // Вставляем сгенерированный Markdown обратно в редактор
+    // setRecord({ url, alt: title });
   };
 
   // 💡 Здесь используем компонент записи
@@ -153,12 +188,11 @@ export default ({ stateSaver }) => {
     const methods = Parser.prototype.inlineMethods;
     function tokenizeAudio(eat, value, silent) {
       const match = value.match(/!\[([^\]]+)\.mp3]\(([^)]+)\)/);
-      setAttchedLinks(prevState => prevState.add(value));
-      console.log({ attachedLinks })
       if (!match) return false;
       if (silent) return true;
       const [fullMatch, alt, url] = match;
-
+      setAttchedLinks(prevState => prevState.add(url))
+      console.log({ attachedLinks })
       return eat(fullMatch)({
         type: 'audioPlugin',
         audio: { alt, url },
@@ -172,12 +206,37 @@ export default ({ stateSaver }) => {
   }
 
 
+  function ImageMarkdownParser() {
+    const Parser = this.Parser;
+    const tokenizers = Parser.prototype.inlineTokenizers;
+    const methods = Parser.prototype.inlineMethods;
+    function tokenizeImage(eat, value, silent) {
+      const match = value.match(/!\[([^\]]+)\.png]\(([^)]+)\)/);
+      if (!match) return false;
+      if (silent) return true;
+
+      const [fullMatch, alt, url] = match;
+      setAttchedLinks(prevState => prevState.add(url))
+      console.log({ attachedLinks })
+      return eat(fullMatch)({
+        type: 'imagePlugin',
+        image: { alt, url },
+      });
+    }
+    tokenizeImage.locator = (value, fromIndex) => {
+      return value.indexOf(':', fromIndex);
+    };
+    tokenizers.image = tokenizeImage;
+    methods.splice(methods.indexOf('link'), 0, 'image')
+  }
+
+
   const AudioRender = React.memo(({ audio }) => {
     if (!audio || !audio.url) return null;
     return (
       <EuiPanel paddingSize="s" grow={false} style={{ maxWidth: 400 }}>
         <EuiText size="s" style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
-          <EuiIcon type="musicalNote" size="m" style={{ marginRight: 8 }} />
+          <EuiIcon type="arrowRight" size="m" style={{ marginRight: 8 }} />
           <strong>{audio.alt}</strong>
         </EuiText>
         <audio controls src={audio.url} style={{ width: '100%', outline: 'none' }}>
@@ -187,15 +246,32 @@ export default ({ stateSaver }) => {
     );
   });
 
+
+  const ImageRender = React.memo(({ image }) => {
+    if (!image || !image.url) return null;
+    console.log({ image })
+    return (
+      <EuiPanel paddingSize="s" grow={false} style={{ maxWidth: 400 }}>
+        <EuiText size="s" style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+          <EuiIcon type="arrowRight" size="m" style={{ marginRight: 8 }} />
+          <strong>{image.alt}</strong>
+        </EuiText>
+        <img src={image.url} style={{ width: '100%', outline: 'none' }} />
+      </EuiPanel>
+    );
+  });
+
   const finalParsingList = useMemo(() => {
     const parsingList = getDefaultEuiMarkdownParsingPlugins();
     parsingList.push(AudioMarkdownParser);
+    parsingList.push(ImageMarkdownParser);
     return parsingList
   }, [])
 
   const finalProcessingList = useMemo(() => {
     const processingList = getDefaultEuiMarkdownProcessingPlugins();
     processingList[1][1].components.audioPlugin = AudioRender;
+    processingList[1][1].components.imagePlugin = ImageRender;
     return processingList;
   }, []);
 
